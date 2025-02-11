@@ -1,80 +1,65 @@
 #!/bin/bash
 set -e
 
-# Define variables for directories and branch name
-GIT_DIR="/home/deployer/git/myapp.git"
-DEPLOY_DIR="/home/deployer/myapp"
-BRANCH="main"
+#############################################
+# CONFIGURATION VARIABLES (customize as needed)
+#############################################
+TARGET="/app/frontend"                   # Directory where the repository will be cloned
+NGINX_ROOT="/usr/share/nginx/html"       # Nginx document root
+BRANCH="main"                            # Deployment branch
 GITHUB_REPO="https://github.com/arley9511/designli-challenge.git"
-NGINX_ROOT="/usr/share/nginx/html"
 
-# Create directories if they don't exist
-mkdir -p "$(dirname "$GIT_DIR")"
-mkdir -p "$DEPLOY_DIR"
+#############################################
+# FUNCTION: deploy
+# Contains the deployment steps used both at startup and on hook trigger.
+#############################################
+deploy() {
+    echo "Deployment started at $(date)"
 
-# Initialize or reconfigure the bare repository
-if [ ! -d "$GIT_DIR" ]; then
-  git init --bare "$GIT_DIR"
-  git --git-dir="$GIT_DIR" remote add origin "$GITHUB_REPO"
-else
-  git --git-dir="$GIT_DIR" remote set-url origin "$GITHUB_REPO"
-fi
+    # If TARGET is not a git repository, clone it. Otherwise, pull the latest changes.
+    if [ ! -d "$TARGET/.git" ]; then
+        echo "Cloning repository from $GITHUB_REPO..."
+        git clone -b "$BRANCH" "$GITHUB_REPO" "$TARGET"
+    else
+        echo "Pulling latest changes in $TARGET..."
+        cd "$TARGET"
+        git pull origin "$BRANCH"
+    fi
 
-# Create the post-receive hook
-HOOK="$GIT_DIR/hooks/post-receive"
-cat > "$HOOK" <<'EOF'
-#!/bin/bash
-set -e
-TARGET="/home/deployer/myapp"
-GIT_DIR="/home/deployer/git/myapp.git"
-BRANCH="main"
-NGINX_ROOT="/usr/share/nginx/html"
+    # Navigate to the project directory (adjust if your repository structure differs)
+    if [ -d "$TARGET/frontend" ]; then
+        cd "$TARGET/frontend"
+    else
+        cd "$TARGET"
+    fi
 
-# Sync with GitHub
-git --git-dir="$GIT_DIR" fetch origin "$BRANCH"
-git --git-dir="$GIT_DIR" merge origin/"$BRANCH"
-
-while read oldrev newrev ref
-do
-  if [ "$ref" = "refs/heads/$BRANCH" ]; then
-    echo "Ref $ref received. Deploying ${BRANCH} branch to production..."
-    
-    # Check out the code
-    git --work-tree="$TARGET" --git-dir="$GIT_DIR" checkout -f "$BRANCH"
-    
-    # Sync with GitHub changes
-    cd "$TARGET"
-    git pull origin "$BRANCH"
-    
-    # Install dependencies and build
+    # Install dependencies and build the application
+    echo "Installing dependencies..."
     npm install
+    echo "Building application..."
     npm run build
-    
-    # Update Nginx content
-    echo "Updating Nginx content..."
-    sudo rm -rf "$NGINX_ROOT"/*
-    sudo cp -r ./out/* "$NGINX_ROOT"/
-    
-    # Graceful Nginx restart
-    echo "Restarting Nginx..."
-    sudo supervisorctl restart nginx
-  fi
+
+    # Update Nginx content: Remove old files and copy new build output
+    echo "Updating web root at $NGINX_ROOT..."
+    rm -rf "${NGINX_ROOT:?}"/*
+    cp -r ./out/* "$NGINX_ROOT"/
+
+    # Reload Nginx gracefully (ensure supervisorctl is configured in your container)
+    echo "Reloading Nginx..."
+    supervisorctl restart nginx
+
+    echo "Deployment completed at $(date)"
+}
+
+#############################################
+# MAIN SCRIPT EXECUTION
+#############################################
+deploy
+
+# Git hook, Git pipes in "oldrev newrev ref" lines.
+while read -r oldrev newrev ref; do
+    if [ "$ref" = "refs/heads/$BRANCH" ]; then
+        echo "Detected push to $BRANCH; triggering deployment."
+        deploy
+    fi
 done
-EOF
-
-# Make the hook executable
-chmod +x "$HOOK"
-
-# Initial clone of GitHub repository
-if [ ! -d "$DEPLOY_DIR/.git" ]; then
-  git clone "$GITHUB_REPO" "$DEPLOY_DIR"
-fi
-
-# Set permissions for Nginx directory
-sudo chown -R deployer:deployer "$NGINX_ROOT"
-
-# Set up auto-sync with GitHub
-(crontab -l 2>/dev/null; echo "*/5 * * * * git --git-dir="$GIT_DIR" fetch origin --quiet") | crontab -
-
-echo "Git repository configured at $GIT_DIR with Nginx deployment"
-echo "Nginx content directory: $NGINX_ROOT"
