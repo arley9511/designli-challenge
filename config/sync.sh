@@ -21,7 +21,7 @@ setup_repo() {
         ls -la $TARGET
 
         # Set up the post-receive hook to update the working tree at TARGET.
-        HOOK_FILE="$TARGET/.git/hooks/post-receive"
+        HOOK_FILE="$TARGET/.git/hooks/post-recieve"
         touch "$HOOK_FILE"
         echo "Creating post-receive hook at $HOOK_FILE..."
         cat > "$HOOK_FILE" <<EOF
