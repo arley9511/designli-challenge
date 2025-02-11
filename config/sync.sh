@@ -25,7 +25,7 @@ setup_repo() {
         touch "$HOOK_FILE"
         echo "Creating post-receive hook at $HOOK_FILE..."
         cat > "$HOOK_FILE" <<EOF
-#!/bin/sh
+#!/bin/bash
 exec > /dev/stdout 2>&1
 # Post-receive hook: update the working tree
 git --work-tree=/app/repo checkout -f
@@ -76,3 +76,27 @@ setup_repo
 
 # 2. Perform the initial deployment from the remote GitHub repository.
 deploy
+
+while true; do
+    cd "$TARGET"
+
+    # Fetch the latest changes
+    git fetch origin "$BRANCH"
+
+    # Check if there are new changes
+    LOCAL_COMMIT=$(git rev-parse HEAD)
+    REMOTE_COMMIT=$(git rev-parse origin/$BRANCH)
+
+    if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+        echo "New changes detected, pulling latest code..."
+        git reset --hard origin/$BRANCH
+
+        # Restart the application (optional)
+        deploy
+    else
+        echo "No new changes."
+    fi
+
+    # Wait for a few minutes before checking again
+    sleep 60
+done
