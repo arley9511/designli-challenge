@@ -25,6 +25,7 @@ setup_repo() {
     echo "Creating post-receive hook at $HOOK_FILE..."
     cat > "$HOOK_FILE" <<EOF
     #!/bin/sh
+    exec > /dev/stdout 2>&1
     # Post-receive hook: update the working tree
     git --work-tree=/app/repo checkout -f
     supervisorctl start git-setup
