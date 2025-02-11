@@ -14,25 +14,32 @@ GITHUB_REPO="https://github.com/arley9511/designli-challenge.git"
 # Sets up the bare repository and installs the post-receive hook.
 #############################################
 setup_repo() {
-    echo "Cloning repository from $GITHUB_REPO into $TARGET..."
-    git clone -b "$BRANCH" "$GITHUB_REPO" "$TARGET"
+    if [ ! -d "$TARGET/.git" ]; then
+        echo "Cloning repository from $GITHUB_REPO into $TARGET..."
+        git clone -b "$BRANCH" "$GITHUB_REPO" "$TARGET"
 
-    ls -la $TARGET
+        ls -la $TARGET
 
-    # Set up the post-receive hook to update the working tree at TARGET.
-    HOOK_FILE="$TARGET/.git/hooks/post-receive"
-    touch "$HOOK_FILE"
-    echo "Creating post-receive hook at $HOOK_FILE..."
-    cat > "$HOOK_FILE" <<EOF
-    #!/bin/sh
-    exec > /dev/stdout 2>&1
-    # Post-receive hook: update the working tree
-    git --work-tree=/app/repo checkout -f
-    supervisorctl start git-setup
+        # Set up the post-receive hook to update the working tree at TARGET.
+        HOOK_FILE="$TARGET/.git/hooks/post-receive"
+        touch "$HOOK_FILE"
+        echo "Creating post-receive hook at $HOOK_FILE..."
+        cat > "$HOOK_FILE" <<EOF
+        #!/bin/sh
+        exec > /dev/stdout 2>&1
+        # Post-receive hook: update the working tree
+        while read oldrev newrev refname
+        do
+            if [[ $refname = 'refs/heads/main' ]]; then
+                git --work-tree=/app/repo checkout -f
+                supervisorctl start git-setup
+            fi
+        done
 EOF
 
-    chmod +x "$HOOK_FILE"
-    echo "Post-receive hook created."
+        chmod u+x "$HOOK_FILE"
+        echo "Post-receive hook created."
+    fi
 }
 
 #############################################
