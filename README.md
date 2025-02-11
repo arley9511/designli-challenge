@@ -5,6 +5,9 @@
 
 This setup allows a Docker container running on an EC2 instance to automatically sync changes from a remote Git repository and update an Nginx-hosted application. Since there is no direct access to the EC2 instance, the container periodically checks for updates and redeploys when new changes are detected.
 
+## NGROK LINK
+https://0097-186-31-55-96.ngrok-free.app
+
 ### Key Components
 
 - Docker: Containerization platform for deploying the application.
