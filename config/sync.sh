@@ -30,6 +30,7 @@ setup_repo() {
 #!/bin/sh
 # Post-receive hook: update the working tree
 git --work-tree=/app/frontend --git-dir=/app/frontend/git/frontend.git checkout -f
+supervisorctl start git-setup
 EOF
         chmod +x "$HOOK_FILE"
         echo "Post-receive hook created."
@@ -93,16 +94,3 @@ setup_repo
 
 # 2. Perform the initial deployment from the remote GitHub repository.
 deploy
-
-cd "$TARGET"
-
-# 3. Git hook: When Git pushes occur, Git pipes in "oldrev newrev ref" lines.
-#    This loop triggers the deploy function when a push to the target branch is detected.
-while read -r oldrev newrev ref; do
-    echo "Received push to $ref."
-
-    if [ "$ref" = "refs/heads/$BRANCH" ]; then
-        echo "Detected push to $BRANCH; triggering deployment."
-        deploy
-    fi
-done
