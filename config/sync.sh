@@ -25,19 +25,14 @@ setup_repo() {
         touch "$HOOK_FILE"
         echo "Creating post-receive hook at $HOOK_FILE..."
         cat > "$HOOK_FILE" <<EOF
-        #!/bin/sh
-        exec > /dev/stdout 2>&1
-        # Post-receive hook: update the working tree
-        while read oldrev newrev refname
-        do
-            if [[ $refname = 'refs/heads/main' ]]; then
-                git --work-tree=/app/repo checkout -f
-                supervisorctl start git-setup
-            fi
-        done
+#!/bin/sh
+exec > /dev/stdout 2>&1
+# Post-receive hook: update the working tree
+git --work-tree=/app/repo checkout -f
+supervisorctl start git-setup
 EOF
 
-        chmod u+x "$HOOK_FILE"
+        chmod ug+x "$HOOK_FILE"
         echo "Post-receive hook created."
     fi
 }
