@@ -5,7 +5,7 @@ set -e
 # CONFIGURATION VARIABLES
 #############################################
 TARGET="/app/frontend"                          # Working tree / deployment directory
-BARE_REPO="/app/frontend/git/myapp.git"           # Path to the bare repository for hooks
+BARE_REPO="/app/frontend/git/frontend.git"           # Path to the bare repository for hooks
 NGINX_ROOT="/usr/share/nginx/html"               # Nginx document root
 BRANCH="main"                                   # Deployment branch
 GITHUB_REPO="https://github.com/arley9511/designli-challenge.git"
@@ -29,7 +29,7 @@ setup_repo() {
         cat > "$HOOK_FILE" << 'EOF'
 #!/bin/sh
 # Post-receive hook: update the working tree
-git --work-tree=/app/frontend --git-dir=/app/frontend/git/myapp.git checkout -f
+git --work-tree=/app/frontend --git-dir=/app/frontend/git/frontend.git checkout -f
 EOF
         chmod +x "$HOOK_FILE"
         echo "Post-receive hook created."
@@ -94,9 +94,13 @@ setup_repo
 # 2. Perform the initial deployment from the remote GitHub repository.
 deploy
 
+cd "$TARGET"
+
 # 3. Git hook: When Git pushes occur, Git pipes in "oldrev newrev ref" lines.
 #    This loop triggers the deploy function when a push to the target branch is detected.
 while read -r oldrev newrev ref; do
+    echo "Received push to $ref."
+
     if [ "$ref" = "refs/heads/$BRANCH" ]; then
         echo "Detected push to $BRANCH; triggering deployment."
         deploy
