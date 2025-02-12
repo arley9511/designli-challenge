@@ -7,6 +7,7 @@ RUN apt-get update && \
     openssh-server \
     nodejs \
     npm \
+    rsync \
     && rm -rf /var/lib/apt/lists/*
 
 # Create user with fixed UID/GID
@@ -35,8 +36,8 @@ RUN mkdir -p /home/gituser/repo && \
     git init --bare
 
 # Copy and configure post-receive hook
-COPY --chown=gituser:gitgroup config/post-receive /home/gituser/repo/hooks/post-receive
-RUN chmod +x /home/gituser/repo/hooks/post-receive
+COPY --chown=gituser:gitgroup config/post-receive /home/gituser/hooks/post-receive
+RUN chmod +x /home/gituser/hooks/post-receive
 
 # Entrypoint to fix permissions
 USER root

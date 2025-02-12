@@ -26,11 +26,12 @@ do
     fi
 
     # Build and copy
+    cd "$TEMP_DIR/frontend"
     npm install
     npm run build
-    npm run export
 
-    # Copy build artifacts to shared volume
+    # Remove old build artifacts.
+    echo "Removing old build artifacts from $TARGET..."
     rm -rf "$TARGET"/*
     cp -a "$TEMP_DIR/frontend/out"/* "$TARGET"/
   fi
