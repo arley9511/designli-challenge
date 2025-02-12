@@ -2,12 +2,16 @@
 This project demonstrates an automated deployment workflow using Docker containers. A Git server accepts pushes via SSH, triggering a post-receive hook that builds a Next.js application. The built artifacts are stored on a shared volume that the Nginx container uses to serve the application. An ngrok container exposes the site externally via a secure tunnel.
 
 ## Table of Contents
+- NGROK link
 - Overview
 - Architecture
 - Components
 - Setup and Configuration
 - How It Works
 - How to Test the Deployment
+
+### NGROK link
+https://2792-186-31-55-96.ngrok-free.app
 
 ### Overview
 When you push code to the Git server using a command such as:
