@@ -115,26 +115,25 @@ In your local repository, add the Git remote:
 
 ```bash
 git remote add docker ssh://gituser@localhost:2222/home/gituser/repo
-
 ```
 Push Changes:
 Push your changes to trigger the deployment:
 
 ```bash
 git push docker main
+password: gituser
 ```
 You should see output from the post-receive hook indicating that it is checking out the code, building the application, and synchronizing build artifacts.
 
 ### Verify Deployment:
 
-- Check the logs of the git-server container for deployment messages:
+Check the logs of the git-server container for deployment messages:
 
 ```bash
 docker-compose logs git-server
-
 ```
 
-- Check the public URL provided by ngrok:
+Check the public URL provided by ngrok:
 
 ```bash
 docker-compose logs ngrok
