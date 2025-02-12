@@ -107,7 +107,7 @@ Run the following commands to build and start all services:
 
 ```bash
 docker-compose down -v
-docker-compose up --build -d
+NGROK_AUTH_TOKEN=<your ngrok token> docker-compose up --build -d
 ```
 
 Add Git Remote (if not done already):
