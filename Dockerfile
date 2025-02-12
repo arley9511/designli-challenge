@@ -1,44 +1,47 @@
-# Use the official Ubuntu base image
 FROM ubuntu:latest
 
-# Set the working directory and copy app files
-WORKDIR /app
-
-COPY config/sync.sh /app/sync.sh
-
-# Avoid interactive prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install dependencies, Node.js LTS, Nginx, and Supervisor
+# Install dependencies
 RUN apt-get update && \
-    apt-get install -y \
-    curl \
-    gnupg \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
     git \
-    cron \
-    ca-certificates \
+    openssh-server \
+    nodejs \
+    npm \
     && rm -rf /var/lib/apt/lists/*
 
-# Add NodeSource repository for Node.js LTS
-RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+# Create user with fixed UID/GID
+RUN groupadd -g 1001 gitgroup && \
+    useradd -m -u 1001 -g gitgroup -s /bin/bash gituser && \
+    echo "gituser:gituser" | chpasswd
 
-# Install Node.js LTS, Nginx, and Supervisor
-RUN apt-get install -y nodejs nginx supervisor
+# Configure SSH
+RUN mkdir -p /var/run/sshd && \
+    chown root:root /var/run/sshd && \
+    chmod 0755 /var/run/sshd && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#StrictModes yes/StrictModes no/' /etc/ssh/sshd_config
 
-# Remove default Nginx configuration
-RUN rm -rf /etc/nginx/sites-enabled/default
+# Generate SSH host keys so sshd can start
+RUN ssh-keygen -A
 
-# Copy custom Nginx configuration (reverse proxy for Node.js)
-COPY config/nginx.conf /etc/nginx/sites-available/app
-RUN ln -s /etc/nginx/sites-available/app /etc/nginx/sites-enabled/
-# Create the document root (if not already present) and clean any default content
-RUN mkdir -p /usr/share/nginx/html && rm -rf /usr/share/nginx/html/*
+# Set up build directory with correct permissions
+RUN mkdir -p /app/build && \
+    chown -R gituser:gitgroup /app/build
 
-# Copy Supervisor configuration to manage both Nginx and Node.js
-COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Configure Git repository
+USER gituser
+RUN mkdir -p /home/gituser/repo && \
+    cd /home/gituser/repo && \
+    git init --bare
 
-# Expose ports for Nginx 80
-EXPOSE 80
+# Copy and configure post-receive hook
+COPY --chown=gituser:gitgroup config/post-receive /home/gituser/repo/hooks/post-receive
+RUN chmod +x /home/gituser/repo/hooks/post-receive
 
-# Start Supervisor to manage Nginx and Node.js processes
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Entrypoint to fix permissions
+USER root
+COPY ./config/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
+
+CMD ["/usr/sbin/sshd", "-D"]

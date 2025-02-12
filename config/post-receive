@@ -1,0 +1,37 @@
+#!/bin/bash
+set -e
+
+TARGET="/app/build"
+
+# Read STDIN so the hook runs only on pushes.
+while read oldrev newrev ref
+do
+  if [ "$ref" = "refs/heads/main" ]; then
+    echo "=== Deploying Next.js app for branch $ref ==="
+    
+    # Create a temporary directory for the checkout
+    TEMP_DIR=$(mktemp -d)
+    echo "Temporary directory: $TEMP_DIR"
+    
+    REPO_DIR="$(dirname "$0")/../"
+    
+    # Explicitly set HEAD to refs/heads/main to avoid "branch yet to be born" errors.
+    echo "Setting HEAD to refs/heads/main"
+    git --git-dir="$REPO_DIR" symbolic-ref HEAD refs/heads/main || true
+    
+    # Checkout the latest commit into the temporary directory.
+    if ! git --work-tree="$TEMP_DIR" --git-dir="$REPO_DIR" checkout -f main; then
+      echo "Error: Git checkout failed. Is '$REPO_DIR' a valid bare repository?"
+      exit 1
+    fi
+
+    # Build and copy
+    npm install
+    npm run build
+    npm run export
+
+    # Copy build artifacts to shared volume
+    rm -rf "$TARGET"/*
+    cp -a "$TEMP_DIR/frontend/out"/* "$TARGET"/
+  fi
+done
